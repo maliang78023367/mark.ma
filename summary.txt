@@ -1,0 +1,28 @@
+
+====== restart ModemCtl FAIL ======>>>>>> ERR = 23329
+====== restart MBIM FAIL ======>>>>>> ERR = 23331
+====== restart ModemCtl FAIL ======>>>>>> ERR = 23344
+====== restart MBIM FAIL ======>>>>>> ERR = 23346
+====== restart FWUpdateDriver FAIL ======>>>>>> ERR = 23348
+====== restart ModemCtl FAIL ======>>>>>> ERR = 23361
+====== restart MBIM FAIL ======>>>>>> ERR = 23363
+====== restart FWUpdateDriver FAIL ======>>>>>> ERR = 23365
+
+
+
+
+================= START ======================        >>>>>> 354
+====== restart PCIe SUCCESS ======                    >>>>>> 350
+====== restart ModemCtl SUCCESS ======                >>>>>> 347
+====== restart MBIM SUCCESS ======                    >>>>>> 347
+====== restart FWUpdateDriver SUCCESS ======          >>>>>> 347
+====== restart PING SUCCESS ======                    >>>>>> 345
+====== Manual Connect PING SUCCESS ======             >>>>>> 0
+
+
+====== S4 PCIe SUCCESS ======                    >>>>>> 0
+====== S4 ModemCtl SUCCESS ======                >>>>>> 0
+====== S4 MBIM SUCCESS ======                    >>>>>> 0
+====== S4 FWUpdateDriver SUCCESS ======          >>>>>> 0
+====== S4 PING SUCCESS ======                    >>>>>> 0
+================= END ======================          >>>>>> 345
