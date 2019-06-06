@@ -2,23 +2,29 @@
 import sys,os,re,time
 import ctypes
 import subprocess as sp
+import threading
+
+
 
 #fpath="c:\\Python36\\test\\Thread_CheckLog_file.txt"
 fpath="c:\\python36\\test\\mike.log"
 mike_log="C:\\Users\\FVT2\\Desktop\\Mike_Log\\Mike_HibernationResume_auto_20181012-2133.log"
 g_fileinfo=0.0
 g_times=0
-g_Ping_Times=3
+g_Ping_TryTimes=3
 
 
 
 
 ####################################################
 def api_writefile(ss=''):
+    global g_CurrentPath
+    global g_LogFile_name
 
     # log file path
     g_CurrentPath = os.getcwd()
-    path = g_CurrentPath+"\\log.txt"
+    #path = g_CurrentPath+"\\log.txt"
+    path = g_CurrentPath+"\\" + g_LogFile_name
     
     with open(path,'a') as log_file:
         log_file.write(ss+'\n')
@@ -26,6 +32,9 @@ def api_writefile(ss=''):
 
 ####################################################
 def check_device(out=""):
+    global g_Stop_DeviceCheck
+    global g_Delay_BeforeDeviceCheck
+    player = ctypes.windll.kernel32
     
     #============================
     # check HWID
@@ -33,8 +42,9 @@ def check_device(out=""):
     #p=os.popen("cd \\ &&cd python36\\restart && check_hwid.bat")
     cmd = "cd \\ &&cd " +g_CurrentPath+ " && check_hwid.bat"
     p=os.popen(cmd)
-    time.sleep(5)#wait 2s
+    time.sleep(g_Delay_BeforeDeviceCheck)#wait 2s
     path = g_CurrentPath + "\\check_hwid.log"
+    err_cnt=0
     with open(path,'r') as check_hwid:
         str_check_hwid=check_hwid.read()
     
@@ -42,25 +52,36 @@ def check_device(out=""):
             api_writefile("====== " +out+ " PCIe SUCCESS ======\n")
         else:
             api_writefile("====== " +out+ " PCIe FAIL ======\n")
+            err_cnt = err_cnt + 1
 
     
         if str_check_hwid.find("ModemCtl-OK")!=-1:
             api_writefile("====== " +out+ " ModemCtl SUCCESS ======\n")
         else:	
             api_writefile("====== " +out+ " ModemCtl FAIL ======\n")
+            err_cnt = err_cnt + 1
 
             
         if str_check_hwid.find("MBIM-OK")!=-1:
             api_writefile("====== " +out+ " MBIM SUCCESS ======\n")
         else:
             api_writefile("====== " +out+ " MBIM FAIL ======\n")
-
+            err_cnt = err_cnt + 1
+#===========================================
+        if g_Stop_DeviceCheck == 1 :
+            if err_cnt != 0:
+                Timer_Stop()
+                while(1):
+                    api_writefile(str( time.strftime('Wakeup Time: %Y-%m-%d %H:%M:%S',time.localtime(time.time())) )+"\n\n")
+                    time.sleep(1)
+                    player.Beep(1000,300)
+#===========================================
                     
         #p=os.popen("cd \\ &&cd python36\\restart && check_hwid.bat")
         cmd = "devcon.exe  hwids * > devcon.log"
         admin_cmd="admin_checkDev.bat"
         p=os.popen(admin_cmd)
-        time.sleep(5)#wait 2s
+        time.sleep(2)#wait 2s
         devcon_log = g_CurrentPath + "\\devcon.log"
         try:
             with open(devcon_log,'r') as devcon:
@@ -80,8 +101,14 @@ def check_device(out=""):
     os.popen("del "+ path)
 
 ####################################################
-
-def check_ping(times=20, out=""):
+def check_ping(times=6, out=""):
+    global g_Stop_Ping
+    global g_Ping_TryTimes
+    global g_Delay_BeforePing
+    
+    
+    times=g_Ping_TryTimes
+    
     player = ctypes.windll.kernel32
     g_CurrentPath = os.getcwd()
     cmd_Ping="@ping -n 10 www.baidu.com"
@@ -90,7 +117,7 @@ def check_ping(times=20, out=""):
     
     os.popen("netsh wlan disconnect")
     for i in range(0,times):
-        time.sleep(15)
+        time.sleep(g_Delay_BeforePing)
         api_writefile(str( time.strftime('%Y-%m-%d %H:%M:%S',time.localtime(time.time())) )+"\n\n")
         
         #====================================
@@ -100,7 +127,7 @@ def check_ping(times=20, out=""):
         api_writefile(str_return)
         
         #====================================
-        # Ping		
+        # Ping
         p=os.popen(cmd_Ping)
         str_return=p.read()
         api_writefile( str_return )
@@ -112,10 +139,14 @@ def check_ping(times=20, out=""):
             
     if cnt>=times:
         api_writefile("====== " +out+ " PING Fail ======\n")
-        while(1):
-            time.sleep(1)
-            player.Beep(1000,300)
-
+#===========================================
+        if g_Stop_Ping == 1 :
+            Timer_Stop()
+            while(1):
+                api_writefile(str( time.strftime('Wakeup Time: %Y-%m-%d %H:%M:%S',time.localtime(time.time())) )+"\n\n")
+                time.sleep(1)
+                player.Beep(1000,300)
+#===========================================
 
 ####################################################		
 def call_S4(           Total                = 2000, # resume  times
@@ -180,14 +211,17 @@ def call_S4(           Total                = 2000, # resume  times
 
             #here check the MBIM Status
             api_writefile(str( time.strftime('Wakeup Time: %Y-%m-%d %H:%M:%S',time.localtime(time.time())) )+"\n\n")
-            check_device(out="S4")
-            check_ping(out="S4")                    
+            if g_If_DeviceCheck==1:
+                check_device(out="S3")
+            if g_If_Ping==1:
+                check_ping(out="S3")                 
             time.sleep(1)
             
             if i == Total:
                 api_writefile("\n[Success]:\nThe S4 test has completed sucessfully")
                 return 1
 
+  
                 
 ####################################################
 # 为线程定义一个函数
@@ -246,18 +280,168 @@ def do_something():
     api_writefile("\n\n\n===========================")
     api_writefile("============ START ===============")
     api_writefile("===========================")
-    check_device(out="S4")
-    check_ping(3, out="S4")
+    check_device(out="S3")
+    check_ping(3, out="S3")
     api_writefile("===========================")
     api_writefile("=========== END ================")
     api_writefile("===========================")
+
+
+
+
+g_ude_mdmctl_ril_del_index=1
+g_ihvril_del_index=1
+g_UsbTrace_del_index=1
+def delete_log_resume():
+    global g_TelephonyTool_Path
+    path_TelephonyTool=g_TelephonyTool_Path
+    global g_ude_mdmctl_ril_del_index
+    global g_ihvril_del_index
+    global g_UsbTrace_del_index
+
+    print( "path_TelephonyTool = ",path_TelephonyTool )
+    log_file = os.listdir(path_TelephonyTool)
+    log_files = os.listdir(path_TelephonyTool+log_file[-1])
+   
+    '''
+    print("=============================")
+    print("=============================")
+    print("=============================")
+    print(log_file)
+    
+    # do not delete log if capture coredump file.
+    log_files = os.listdir(path_TelephonyTool+log_file[-1])
+    print("=============================")
+    print("=============================")
+    print("=============================")
+    print( log_files )
+
+    print("=============================")
+    print("=============================")
+    print("=============================")
+    '''
+    
+    
+
+    #delete UDE log
+    ude_mdmctl_ril_cnt=0
+    ihvril_cnt=0
+    UsbTrace_cnt=0
+    ModemTrace_cnt=0
+    for item in log_files:
+        if item.find("ude_mdmctl_ril_")!=-1:
+            ude_mdmctl_ril_cnt = ude_mdmctl_ril_cnt + 1
+        elif item.find("ihvril_")!=-1:
+            ihvril_cnt = ihvril_cnt + 1
+        elif item.find("UsbTrace_")!=-1:
+            UsbTrace_cnt = UsbTrace_cnt + 1
+        elif item.find("ModemTrace_")!=-1:
+            ModemTrace_cnt = ModemTrace_cnt + 1
+            
+    print("=============================")
+    print("Start delete UDE log")
+    #ude_mdmctl_ril_cnt = log_files.count("ude_mdmctl_ril_1")      
+    print("ude_mdmctl_ril_cnt = ", ude_mdmctl_ril_cnt)
+    if ude_mdmctl_ril_cnt > 10:
+        ude_mdmctl_ril_delete_name = "ude_mdmctl_ril_" + str(g_ude_mdmctl_ril_del_index)
+        print( "ude_mdmctl_ril_delete_name = ",path_TelephonyTool+log_file[-1]+"\\"+ude_mdmctl_ril_delete_name+".etl" )
+        api_writefile( "ude_mdmctl_ril_delete_name = "+path_TelephonyTool+log_file[-1]+"\\"+ude_mdmctl_ril_delete_name+".etl" )
+        os.popen( "del /S /Q "+path_TelephonyTool+log_file[-1]+"\\"+ude_mdmctl_ril_delete_name+".etl"  )
+        g_ude_mdmctl_ril_del_index = g_ude_mdmctl_ril_del_index + 1
+
+
+    print("=============================")
+    print("Start delete RIL log")
+    #delete UDE log
+    #ihvril_cnt=0
+    #for item in log_files:
+    #    if item.find("ihvril_")!=-1:
+    #        ihvril_cnt = ihvril_cnt + 1
+    #ihvril_cnt = log_files.count("ihvril_cnt")      
+    print("ihvril_cnt = ", ihvril_cnt)
+    if ihvril_cnt > 10:
+        ihvril_delete_name = "ihvril_" + str(g_ihvril_del_index)
+        print( "ihvril_delete_name = ",path_TelephonyTool+log_file[-1]+"\\"+ihvril_delete_name+".etl" )
+        api_writefile( "ihvril_delete_name = "+path_TelephonyTool+log_file[-1]+"\\"+ihvril_delete_name+".etl" )
+        os.popen( "del /S /Q "+path_TelephonyTool+log_file[-1]+"\\"+ihvril_delete_name+".etl"  )
+        g_ihvril_del_index = g_ihvril_del_index + 1
+
+
+    print("=============================")
+    print("Start delete USBTrace log")
+    UsbTrace_cnt=0
+    #for item in log_files:
+    #    if item.find("UsbTrace_")!=-1:
+    #        UsbTrace_cnt = UsbTrace_cnt + 1
+    #UsbTrace = log_files.count("UsbTrace_cnt")      
+    print("UsbTrace_cnt = ", UsbTrace_cnt)
+    if UsbTrace_cnt > 10:
+        UsbTrace_delete_name = "UsbTrace_%06d"%g_UsbTrace_del_index
+        print( "UsbTrace_delete_name = ",path_TelephonyTool+log_file[-1]+"\\"+UsbTrace_delete_name+".etl" )
+        api_writefile( "UsbTrace_delete_name = "+path_TelephonyTool+log_file[-1]+"\\"+UsbTrace_delete_name+".etl" )
+        os.popen( "del /S /Q "+path_TelephonyTool+log_file[-1]+"\\"+UsbTrace_delete_name+".etl"  )
+        g_UsbTrace_del_index = g_UsbTrace_del_index + 1
+        
+        
+    print("=============================")
+    print("Start delete Modem log")
+    #ModemTrace__cnt=0
+    #for item in log_files:
+    #    if item.find("ModemTrace_")!=-1:
+    #        ModemTrace__cnt = ModemTrace__cnt + 1
+    #UsbTrace = log_files.count("UsbTrace_cnt")      
+    print("ModemTrace_cnt = ", ModemTrace_cnt)
+    ModemTrace_ind=0
+    for item in log_files:
+        if item.find("ModemTrace_")!=-1:
+            break
+        ModemTrace_ind = ModemTrace_ind + 1
+    print("ModemTrace_ind = ", ModemTrace_ind)
+    print("ModemTrace_name = ", log_files[ModemTrace_ind])    
+    if ModemTrace_cnt > 4:
+        print( "ModemTrace_delete_name = "+path_TelephonyTool+log_file[-1]+"\\"+log_files[ModemTrace_ind+1] )
+        #api_writefile( "ModemTrace_delete_name = "+path_TelephonyTool+log_file[-1]+"\\"+log_files[ModemTrace_ind+1]+".istp" )
+        os.popen( "del /S /Q "+path_TelephonyTool+log_file[-1]+"\\"+log_files[ModemTrace_ind+1] )
+
+
+
+def Timer_Process():
+    print("Timer_Process: "+(str( time.strftime('%Y-%m-%d %H:%M:%S',time.localtime(time.time())) )+"\n\n"))
+    delete_log_resume()
+    Timer_Start()
+    
+def Timer_Start(timeout=20):
+    global g_Timer
+    g_Timer = threading.Timer(timeout, Timer_Process)
+    g_Timer.start()
+
+def Timer_Stop():
+    global g_Timer
+    g_Timer.cancel()
+
+g_Delay_BeforeDeviceCheck=30
+g_Delay_BeforePing=10
+g_Stop_DeviceCheck=1
+g_Stop_Ping=1
+g_If_DeviceCheck=1
+g_If_Ping=0
+g_If_DeleteLog=1
+g_Ping_TryTimes=6
+g_LogFile_name="S4_log.txt"
+
+g_TelephonyTool_Path="c:\\users\\fibocom\\documents\\intel\\telephonytool\\trace_folder\\"
 
 if __name__ == "__main__":
     g_CurrentPath=os.getcwd()
     path = g_CurrentPath+"\\delete_log.txt"
 
-    call_S4()
+    if g_If_DeleteLog==1 :
+        Timer_Process()
 
+    call_S4()
+    
+    
+    
     
         
         
