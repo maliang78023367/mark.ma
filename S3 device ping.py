@@ -381,7 +381,6 @@ def delete_log_resume():
     #        ModemTrace__cnt = ModemTrace__cnt + 1
     #UsbTrace = log_files.count("UsbTrace_cnt")      
     print("ModemTrace_cnt = ", ModemTrace_cnt)
-    ModemTrace_ind=0
     for item in log_files:
         if item.find("ModemTrace_")!=-1:
             break

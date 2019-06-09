@@ -369,7 +369,6 @@ def delete_log_resume():
 
     print("=============================")
     print("Start delete USBTrace log")
-    UsbTrace_cnt=0
     #for item in log_files:
     #    if item.find("UsbTrace_")!=-1:
     #        UsbTrace_cnt = UsbTrace_cnt + 1
